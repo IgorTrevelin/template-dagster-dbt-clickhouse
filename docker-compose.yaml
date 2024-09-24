@@ -1,0 +1,126 @@
+services:
+  dagster-user-code-server:
+    container_name: dagster-user-code-server
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: custom-dagster-dbt
+    command:
+      [
+        "dagster",
+        "api",
+        "grpc",
+        "-h",
+        "0.0.0.0",
+        "-p",
+        "4000",
+        "-m",
+        "repo.definitions",
+      ]
+    environment:
+      - DAGSTER_CURRENT_IMAGE=custom-dagster-dbt
+      - DAGSTER_HOME=${DAGSTER_HOME}
+      - DAGSTER_ARTIFACTS=${DAGSTER_ARTIFACTS}
+      - DAGSTER_LOGS=${DAGSTER_LOGS}
+      - DAGSTER_POSTGRES_HOST=${DAGSTER_POSTGRES_HOST}
+      - DAGSTER_POSTGRES_DB=${DAGSTER_POSTGRES_DB}
+      - DAGSTER_POSTGRES_USER=${DAGSTER_POSTGRES_USER}
+      - DAGSTER_POSTGRES_PASSWORD=${DAGSTER_POSTGRES_PASSWORD}
+      - CLICKHOUSE_DB=${CLICKHOUSE_DB}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+    volumes:
+      - ./dagster/repo:/app/repo
+    networks:
+      - dagster-network
+    restart: unless-stopped
+
+  dagster-daemon:
+    container_name: dagster-daemon
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: custom-dagster-dbt
+    command: ["dagster-daemon", "run"]
+    environment:
+      - DAGSTER_HOME=${DAGSTER_HOME}
+      - DAGSTER_ARTIFACTS=${DAGSTER_ARTIFACTS}
+      - DAGSTER_LOGS=${DAGSTER_LOGS}
+      - DAGSTER_POSTGRES_HOST=${DAGSTER_POSTGRES_HOST}
+      - DAGSTER_POSTGRES_DB=${DAGSTER_POSTGRES_DB}
+      - DAGSTER_POSTGRES_USER=${DAGSTER_POSTGRES_USER}
+      - DAGSTER_POSTGRES_PASSWORD=${DAGSTER_POSTGRES_PASSWORD}
+    depends_on:
+      - dagster-user-code-server
+      - dagster-postgres
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks:
+      - dagster-network
+    restart: unless-stopped
+
+  dagster-webserver:
+    container_name: dagster-webserver
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: custom-dagster-dbt
+    ports:
+      - 3000:3000
+    environment:
+      - DAGSTER_HOME=${DAGSTER_HOME}
+      - DAGSTER_ARTIFACTS=${DAGSTER_ARTIFACTS}
+      - DAGSTER_LOGS=${DAGSTER_LOGS}
+      - DAGSTER_POSTGRES_HOST=${DAGSTER_POSTGRES_HOST}
+      - DAGSTER_POSTGRES_DB=${DAGSTER_POSTGRES_DB}
+      - DAGSTER_POSTGRES_USER=${DAGSTER_POSTGRES_USER}
+      - DAGSTER_POSTGRES_PASSWORD=${DAGSTER_POSTGRES_PASSWORD}
+    depends_on:
+      - dagster-daemon
+    networks:
+      - dagster-network
+    restart: unless-stopped
+
+  dagster-postgres:
+    container_name: dagster-postgres
+    image: postgres:15
+    ports:
+      - 5432:5432
+    environment:
+      - POSTGRES_DB=${DAGSTER_POSTGRES_DB}
+      - POSTGRES_USER=${DAGSTER_POSTGRES_USER}
+      - POSTGRES_PASSWORD=${DAGSTER_POSTGRES_PASSWORD}
+    volumes:
+      - dagster_postgres_data:/var/lib/postgresql/data
+    networks:
+      - dagster-network
+    restart: unless-stopped
+
+  clickhouse-server:
+    container_name: clickhouse
+    image: clickhouse/clickhouse-server
+    ports:
+      - "8123:8123"
+      - "9000:9000"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+      - clickhouse_logs:/var/log/clickhouse-server
+    environment:
+      - CLICKHOUSE_DB=${CLICKHOUSE_DB}
+      - CLICKHOUSE_USER=${CLICKHOUSE_USER}
+      - CLICKHOUSE_PASSWORD=${CLICKHOUSE_PASSWORD}
+    networks:
+      - dagster-network
+    restart: unless-stopped
+
+volumes:
+  dagster_postgres_data:
+  clickhouse_data:
+  clickhouse_logs:
+
+networks:
+  dagster-network:
+    name: dagster-network
+    driver: bridge
+    driver_opts:
+      com.docker.network.bridge.host_binding_ipv4: "127.0.0.1"

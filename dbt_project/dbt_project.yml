@@ -1,0 +1,19 @@
+name: "dbt_project"
+version: "1.0.0"
+
+profile: "dbt"
+
+model-paths: ["models"]
+analysis-paths: []
+test-paths: []
+seed-paths: ["seeds"]
+macro-paths: []
+snapshot-paths: []
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+models:
+  dbt_project:
+    +materialized: table
