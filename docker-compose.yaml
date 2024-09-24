@@ -18,6 +18,7 @@ services:
         "repo.definitions",
       ]
     environment:
+      - DAGSTER_IS_DEV_CLI=false
       - DAGSTER_CURRENT_IMAGE=custom-dagster-dbt
       - DAGSTER_HOME=${DAGSTER_HOME}
       - DAGSTER_ARTIFACTS=${DAGSTER_ARTIFACTS}

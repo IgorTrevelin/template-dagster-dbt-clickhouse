@@ -1,7 +1,7 @@
 dbt:
-  target: dev
+  target: target
   outputs:
-    dev:
+    target:
       type: clickhouse
       schema: "{{ env_var('CLICKHOUSE_DB') }}"
       host: clickhouse
